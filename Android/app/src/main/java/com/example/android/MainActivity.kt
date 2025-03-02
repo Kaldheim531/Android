@@ -1,102 +1,205 @@
-package com.example.android
+package com.example.myapplication
 
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import com.example.android.databinding.ActivityMainBinding
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.accessibility.AccessibilityManagerCompat.TouchExplorationStateChangeListener
+import com.example.myapplication.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityMainBinding // View Binding
-    private var currentInput = "" // Текущий ввод
-    private var currentOperator = "" // Текущий оператор
-    private var firstNumber = 0.0 // Первое число
-    private var secondNumber = 0.0 // Второе число
+    lateinit var mainBinding: ActivityMainBinding
+    var number :String?=null
+
+    var fristNumber:Double=0.0
+    var lastNumber:Double=0.0
+
+    var status : String?=null
+    var operator: Boolean=false
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Инициализация View Binding
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        mainBinding=ActivityMainBinding.inflate(layoutInflater)
 
-        // Обработка нажатий на кнопки цифр
-        binding.button0.setOnClickListener { appendNumber("0") }
-        binding.button1.setOnClickListener { appendNumber("1") }
-        binding.button2.setOnClickListener { appendNumber("2") }
-        binding.button3.setOnClickListener { appendNumber("3") }
-        binding.button4.setOnClickListener { appendNumber("4") }
-        binding.button5.setOnClickListener { appendNumber("5") }
-        binding.button6.setOnClickListener { appendNumber("6") }
-        binding.button7.setOnClickListener { appendNumber("7") }
-        binding.button8.setOnClickListener { appendNumber("8") }
-        binding.button9.setOnClickListener { appendNumber("9") }
 
-        // Обработка нажатий на кнопки операций
-        binding.buttonAdd.setOnClickListener { setOperator("+") }
-        binding.buttonSubtract.setOnClickListener { setOperator("-") }
-        binding.buttonMultiply.setOnClickListener { setOperator("*") }
-        binding.buttonDivide.setOnClickListener { setOperator("/") }
+        val view = mainBinding.root
 
-        // Обработка нажатия на кнопку "."
-        binding.buttonDot.setOnClickListener { appendNumber(".") }
+        setContentView(view)
 
-        // Обработка нажатия на кнопку "="
-        binding.buttonEquals.setOnClickListener { calculateResult() }
 
-        // Обработка нажатия на кнопку "C"
-        binding.buttonClear.setOnClickListener { clearInput() }
-    }
+        mainBinding.textView.text="0"
 
-    // Добавление цифры или точки в текущий ввод
-    private fun appendNumber(number: String) {
-        if (number == "." && currentInput.contains(".")) {
-            return // Не добавляем больше одной точки
+        mainBinding.button0.setOnClickListener{
+            onNubmerClick("0")
         }
-        currentInput += number
-        updateDisplay()
-    }
-
-    // Установка оператора
-    private fun setOperator(operator: String) {
-        if (currentInput.isNotEmpty()) {
-            firstNumber = currentInput.toDouble()
-            currentOperator = operator
-            currentInput = ""
-            updateDisplay()
+        mainBinding.button1.setOnClickListener{
+            onNubmerClick("1")
         }
-    }
-
-    // Вычисление результата
-    private fun calculateResult() {
-        if (currentInput.isNotEmpty() && currentOperator.isNotEmpty()) {
-            secondNumber = currentInput.toDouble()
-            val result = when (currentOperator) {
-                "+" -> firstNumber + secondNumber
-                "-" -> firstNumber - secondNumber
-                "*" -> firstNumber * secondNumber
-                "/" -> {
-                    if (secondNumber != 0.0) firstNumber / secondNumber else Double.NaN // Обработка деления на ноль
-                }
-                else -> Double.NaN
+        mainBinding.button2.setOnClickListener{
+            onNubmerClick("2")
+        }
+        mainBinding.button3.setOnClickListener{
+            onNubmerClick("3")
+        }
+        mainBinding.button4.setOnClickListener{
+            onNubmerClick("4")
+        }
+        mainBinding.button5.setOnClickListener{
+            onNubmerClick("5")
+        }
+        mainBinding.button6.setOnClickListener{
+            onNubmerClick("6")
+        }
+        mainBinding.button7.setOnClickListener{
+            onNubmerClick("7")
+        }
+        mainBinding.button8.setOnClickListener{
+            onNubmerClick("8")
+        }
+        mainBinding.button9.setOnClickListener{
+            onNubmerClick("9")
+        }
+        mainBinding.buttonAC.setOnClickListener{
+            onButtonACClicked()
+        }
+        mainBinding.buttonDel.setOnClickListener{
+            number?.let{
+                number=it.substring(0,it.length-1)
+                mainBinding.textView.text=number
             }
-            currentInput = if (result.isNaN()) "Error" else result.toString()
-            currentOperator = ""
-            updateDisplay()
+
         }
+        mainBinding.buttonDevide.setOnClickListener{
+            if(operator){
+                when(status){
+                    "multi"->multi()
+                    "division" ->divide()
+                    "subtraction" -> minus()
+                    "addition"->plus()
+                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
+                }
+            }
+            status="division"
+            operator =false
+            number = null
+        }
+        mainBinding.buttonMultiple.setOnClickListener{
+            if(operator){
+                when(status){
+                    "multi"->multi()
+                    "division" ->divide()
+                    "subtraction" -> minus()
+                    "addition"->plus()
+                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
+                }
+            }
+            status="multi"
+            operator =false
+            number = null
+        }
+        mainBinding.buttonMinus.setOnClickListener{
+            if(operator){
+                when(status){
+                    "multi"->multi()
+                    "division" ->divide()
+                    "subtraction" -> minus()
+                    "addition"->plus()
+                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
+                }
+            }
+            status="subtraction"
+            operator =false
+            number = null
+        }
+        mainBinding.buttonPlus.setOnClickListener{
+            if(operator){
+                when(status){
+                    "multi"->multi()
+                    "division" ->divide()
+                    "subtraction" -> minus()
+                    "addition"->plus()
+                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
+                }
+            }
+            status="addition"
+            operator =false
+            number = null
+        }
+
+        mainBinding.buttonEqual.setOnClickListener{
+            if(operator){
+                when(status){
+                    "multi"->multi()
+                    "division" ->divide()
+                    "subtraction" -> minus()
+                    "addition"->plus()
+                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
+                }
+            }
+
+            operator =false
+
+        }
+        mainBinding.buttonDot.setOnClickListener{
+            number = if(number ==  null){
+                "0."
+            }else{
+                "$number."
+            }
+            mainBinding.textView.text=number
+        }
+
+    }
+    fun onButtonACClicked(){
+        number = null
+        status = null
+        mainBinding.textView.text="0"
+        fristNumber =0.0
+        lastNumber=0.0
     }
 
-    // Очистка ввода
-    private fun clearInput() {
-        currentInput = ""
-        currentOperator = ""
-        firstNumber = 0.0
-        secondNumber = 0.0
-        updateDisplay()
+    fun onNubmerClick(clickedNumber: String){
+        if(number==null){
+            number =clickedNumber
+        }else{
+            number+=clickedNumber
+        }
+        mainBinding.textView.text=number
+        operator=true
     }
 
-    // Обновление отображения
-    private fun updateDisplay() {
-        // Стало (корректно):
-        binding.display.setText(currentInput)
+    fun plus(){
+        lastNumber=mainBinding.textView.text.toString().toDouble()
+        fristNumber+=lastNumber
+        mainBinding.textView.text=fristNumber.toString()
+
     }
+    fun minus(){
+        lastNumber=mainBinding.textView.text.toString().toDouble()
+        fristNumber-=lastNumber
+        mainBinding.textView.text=fristNumber.toString()
+    }
+    fun multi(){
+        lastNumber=mainBinding.textView.text.toString().toDouble()
+        fristNumber*=lastNumber
+        mainBinding.textView.text=fristNumber.toString()
+
+    }
+    fun divide(){
+        lastNumber=mainBinding.textView.text.toString().toDouble()
+        if(lastNumber==0.0){
+            Toast.makeText(applicationContext,"Делитель не может быть 0",Toast.LENGTH_LONG).show()
+        }else{
+            fristNumber/=lastNumber
+            mainBinding.textView.text=fristNumber.toString()
+        }
+
+
+    }
+
 }
