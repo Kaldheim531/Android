@@ -74,77 +74,6 @@ class MainActivity : AppCompatActivity() {
             }
 
         }
-        mainBinding.buttonDevide.setOnClickListener{
-            if(operator){
-                when(status){
-                    "multi"->multi()
-                    "division" ->divide()
-                    "subtraction" -> minus()
-                    "addition"->plus()
-                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
-                }
-            }
-            status="division"
-            operator =false
-            number = null
-        }
-        mainBinding.buttonMultiple.setOnClickListener{
-            if(operator){
-                when(status){
-                    "multi"->multi()
-                    "division" ->divide()
-                    "subtraction" -> minus()
-                    "addition"->plus()
-                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
-                }
-            }
-            status="multi"
-            operator =false
-            number = null
-        }
-        mainBinding.buttonMinus.setOnClickListener{
-            if(operator){
-                when(status){
-                    "multi"->multi()
-                    "division" ->divide()
-                    "subtraction" -> minus()
-                    "addition"->plus()
-                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
-                }
-            }
-            status="subtraction"
-            operator =false
-            number = null
-        }
-        mainBinding.buttonPlus.setOnClickListener{
-            if(operator){
-                when(status){
-                    "multi"->multi()
-                    "division" ->divide()
-                    "subtraction" -> minus()
-                    "addition"->plus()
-                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
-                }
-            }
-            status="addition"
-            operator =false
-            number = null
-        }
-
-        mainBinding.buttonEqual.setOnClickListener{
-            if(operator){
-                when(status){
-                    "multi"->multi()
-                    "division" ->divide()
-                    "subtraction" -> minus()
-                    "addition"->plus()
-                    else -> fristNumber = mainBinding.textView.text.toString().toDouble()
-                }
-            }
-
-            operator =false
-
-        }
         mainBinding.buttonDot.setOnClickListener{
             number = if(number ==  null){
                 "0."
@@ -154,6 +83,25 @@ class MainActivity : AppCompatActivity() {
             mainBinding.textView.text=number
         }
 
+        mainBinding.buttonDevide.setOnClickListener { onOperatorClicked("division") }
+        mainBinding.buttonMultiple.setOnClickListener { onOperatorClicked("multi") }
+        mainBinding.buttonMinus.setOnClickListener { onOperatorClicked("subtraction") }
+        mainBinding.buttonPlus.setOnClickListener { onOperatorClicked("addition") }
+        mainBinding.buttonEqual.setOnClickListener { onEqualClicked() }
+
+    }
+    override fun onResume() {
+        super.onResume()
+
+    }
+    fun onNubmerClick(clickedNumber: String) {
+        if (number == null) {
+            number = clickedNumber
+        } else {
+            number += clickedNumber
+        }
+        mainBinding.textView.text = number
+        operator = true
     }
     fun onButtonACClicked(){
         number = null
@@ -163,43 +111,49 @@ class MainActivity : AppCompatActivity() {
         lastNumber=0.0
     }
 
-    fun onNubmerClick(clickedNumber: String){
-        if(number==null){
-            number =clickedNumber
-        }else{
-            number+=clickedNumber
+    fun onOperatorClicked(operatorType: String) {
+        if (operator) {
+            performOperation()
         }
-        mainBinding.textView.text=number
-        operator=true
+        status = operatorType
+        operator = false
+        number = null
     }
+    fun performOperation() {
+        lastNumber = mainBinding.textView.text.toString().toDouble()
+        when (status) {
+            "addition" -> fristNumber += lastNumber
+            "subtraction" -> fristNumber -= lastNumber
+            "multi" -> fristNumber *= lastNumber
+            "division" -> {
+                if (lastNumber == 0.0) {
+                    Toast.makeText(
+                        applicationContext,
+                        "Делитель не может быть 0",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return
+                } else {
+                    fristNumber /= lastNumber
+                }
+            }
 
-    fun plus(){
-        lastNumber=mainBinding.textView.text.toString().toDouble()
-        fristNumber+=lastNumber
-        mainBinding.textView.text=fristNumber.toString()
-
-    }
-    fun minus(){
-        lastNumber=mainBinding.textView.text.toString().toDouble()
-        fristNumber-=lastNumber
-        mainBinding.textView.text=fristNumber.toString()
-    }
-    fun multi(){
-        lastNumber=mainBinding.textView.text.toString().toDouble()
-        fristNumber*=lastNumber
-        mainBinding.textView.text=fristNumber.toString()
-
-    }
-    fun divide(){
-        lastNumber=mainBinding.textView.text.toString().toDouble()
-        if(lastNumber==0.0){
-            Toast.makeText(applicationContext,"Делитель не может быть 0",Toast.LENGTH_LONG).show()
-        }else{
-            fristNumber/=lastNumber
-            mainBinding.textView.text=fristNumber.toString()
+            else -> fristNumber = lastNumber
         }
-
-
+        mainBinding.textView.text = fristNumber.toString()
     }
+
+    fun onEqualClicked() {
+        if (operator) {
+            performOperation()
+        }
+        operator = false
+    }
+
 
 }
+
+
+
+
+
