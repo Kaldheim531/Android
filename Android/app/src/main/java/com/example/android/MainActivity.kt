@@ -1,6 +1,7 @@
 package com.example.myapplication
 import com.example.android.Calculator
 import com.example.android.MP3
+import com.example.android.Location
 import android.content.ContentProviderClient
 import android.content.Context
 import android.content.Intent
@@ -13,10 +14,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
+
 class MainActivity : AppCompatActivity() {
     private lateinit var calculator: Button
     private lateinit var mp3: Button
-
+    private lateinit var location: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +40,12 @@ class MainActivity : AppCompatActivity() {
         mp3.setOnClickListener{
             val  mp3Intent  = Intent(this, MP3::class.java)
             startActivity(mp3Intent )
+        }
+
+        location = findViewById(R.id.openLocation)
+        location.setOnClickListener {
+            val locIntent  = Intent(this, Location::class.java)
+            startActivity(locIntent )
         }
     }
 }
