@@ -32,8 +32,11 @@ import java.io.File
 import org.json.JSONArray
 import android.location.Location
 
-class Location : AppCompatActivity() {
+class Location : AppCompatActivity(), LocationWebSocketClient.LocationCallback {
     private lateinit var locationCallback: LocationCallback
+
+    private lateinit var webSocketClient: LocationWebSocketClient
+    private lateinit var webSocketServer: LocationWebSocketServer
 
     val value: Int = 0
     val LOG_TAG: String = "LOCATION_ACTIVITY"
@@ -49,10 +52,16 @@ class Location : AppCompatActivity() {
     private lateinit var tvAlt: TextView
     private lateinit var tvTime: TextView
 
+    override fun onLocationReceived(message: String) {
+        runOnUiThread {
+            Toast.makeText(this, "Received: $message", Toast.LENGTH_SHORT).show()
 
+        }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContentView(R.layout.activity_location)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -67,6 +76,10 @@ class Location : AppCompatActivity() {
         tvAlt = findViewById(R.id.tv_at) as TextView
         tvTime = findViewById(R.id.tv_curtime) as TextView
 
+        webSocketClient = LocationWebSocketClient(this)
+        webSocketServer = LocationWebSocketServer()
+        webSocketServer.startServer()
+        webSocketClient.connect()
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
@@ -177,7 +190,9 @@ class Location : AppCompatActivity() {
         file.writeText(jsonArray.toString(4))
 
         Toast.makeText(this, "Saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+        webSocketClient.sendLocation(latitude, longitude, altitude)
     }
+
 
     private fun requestPermissions() {
         Log.w(LOG_TAG, "requestPermissions()");
@@ -216,9 +231,13 @@ class Location : AppCompatActivity() {
         }
     }
 
+
+
     private fun isLocationEnabled(): Boolean{
         val locationManager:LocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
 
     }
+
+
 }
