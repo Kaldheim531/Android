@@ -13,12 +13,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.android.ZMQclient
 
 
 class MainActivity : AppCompatActivity() {
     private lateinit var calculator: Button
     private lateinit var mp3: Button
     private lateinit var location: Button
+    private lateinit var zmqclient: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,6 +48,12 @@ class MainActivity : AppCompatActivity() {
         location.setOnClickListener {
             val locIntent  = Intent(this, Location::class.java)
             startActivity(locIntent )
+        }
+
+        zmqclient = findViewById(R.id.btnStartSockets)
+        zmqclient.setOnClickListener {
+            val zmqIntent = Intent(this, ZMQclient::class.java)
+            startActivity(zmqIntent)
         }
     }
 }
