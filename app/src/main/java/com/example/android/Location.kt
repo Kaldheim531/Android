@@ -32,6 +32,10 @@ import java.io.File
 import org.json.JSONArray
 import android.location.Location
 
+import org.zeromq.SocketType
+import org.zeromq.ZContext
+import org.zeromq.ZMQ
+
 class Location : AppCompatActivity() {
     private lateinit var locationCallback: LocationCallback
 
@@ -48,7 +52,8 @@ class Location : AppCompatActivity() {
     private lateinit var tvLon: TextView
     private lateinit var tvAlt: TextView
     private lateinit var tvTime: TextView
-
+    private val serverIp = "192.168.31.211" // Тот же IP что в ZMQclient
+    private val serverPort = 8080
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -155,7 +160,35 @@ class Location : AppCompatActivity() {
         }
 
     }
+    private fun sendLocationToServer(latitude: Double, longitude: Double, altitude: Double) {
+        Thread {
+            val context = ZContext()
+            val socket = context.createSocket(SocketType.REQ)
 
+            try {
+                socket.connect("tcp://$serverIp:$serverPort")
+
+                val jsonData = JSONObject().apply {
+                    put("lat", latitude)
+                    put("long", longitude)
+                    put("altitude", altitude)
+                    put("timestamp", System.currentTimeMillis())
+                }
+
+                socket.send(jsonData.toString().toByteArray(ZMQ.CHARSET), 0)
+
+                val reply = socket.recv(0)
+                val replyText = String(reply, ZMQ.CHARSET)
+                Log.d(LOG_TAG, "Server response: $replyText")
+
+            } catch (e: Exception) {
+                Log.e(LOG_TAG, "Error sending to server: ${e.message}")
+            } finally {
+                socket.close()
+                context.close()
+            }
+        }.start()
+    }
     private fun saveCurrentLocation(latitude: Double, longitude: Double, altitude: Double) {
         val timeFormat = SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault())
         val currentTime = timeFormat.format(Date())
@@ -171,13 +204,15 @@ class Location : AppCompatActivity() {
         val file = File(externalDir, "current_location.json")
 
         val jsonArray = if (file.exists()) JSONArray(file.readText()) else JSONArray()
-
         jsonArray.put(newEntry)
-
         file.writeText(jsonArray.toString(4))
+
+        // Отправляем данные на сервер
+        sendLocationToServer(latitude, longitude, altitude)
 
         Toast.makeText(this, "Saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
     }
+
 
     private fun requestPermissions() {
         Log.w(LOG_TAG, "requestPermissions()");

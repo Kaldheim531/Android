@@ -11,8 +11,8 @@ import org.zeromq.ZMQ
 class ZMQclient : AppCompatActivity() {
 
     private lateinit var tvSockets: TextView
-    private val serverIp = "192.168.31.211" // Ваш IP
-    private val serverPort = 8888
+    private val serverIp = "10.245.249.137" // Ваш IP
+    private val serverPort = 8080
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
