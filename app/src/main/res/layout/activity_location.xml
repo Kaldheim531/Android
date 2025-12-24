@@ -46,7 +46,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:padding="16dp"> <!-- Общий отступ для красоты -->
+            android:padding="16dp">
 
             <TextView
                 android:id="@+id/tv_lat"
@@ -54,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:text="Latitude"
                 android:textSize="18sp"
-                android:layout_marginBottom="16dp"/> <!-- Отступ снизу -->
+                android:layout_marginBottom="16dp"/>
 
             <TextView
                 android:id="@+id/tv_lon"

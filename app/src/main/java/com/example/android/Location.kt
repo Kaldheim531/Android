@@ -5,6 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.telephony.CellInfo
+import android.telephony.CellInfoLte
+import android.telephony.CellSignalStrengthLte
+import android.telephony.TelephonyManager
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -31,13 +35,15 @@ import org.json.JSONObject
 import java.io.File
 import org.json.JSONArray
 import android.location.Location
-
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
+import android.os.Build
+import androidx.annotation.RequiresApi
 
 class Location : AppCompatActivity() {
     private lateinit var locationCallback: LocationCallback
+    private lateinit var telephonyManager: TelephonyManager
 
     val value: Int = 0
     val LOG_TAG: String = "LOCATION_ACTIVITY"
@@ -45,6 +51,7 @@ class Location : AppCompatActivity() {
 
     companion object {
         private const val PERMISSION_REQUEST_ACCESS_LOCATION = 100
+        private const val PERMISSION_REQUEST_PHONE_STATE = 101
     }
 
     private lateinit var myFusedLocationProviderClient: FusedLocationProviderClient
@@ -52,9 +59,17 @@ class Location : AppCompatActivity() {
     private lateinit var tvLon: TextView
     private lateinit var tvAlt: TextView
     private lateinit var tvTime: TextView
-    private val serverIp = "192.168.31.211" // Тот же IP что в ZMQclient
-    private val serverPort = 8080
+    private lateinit var tvSignal: TextView
 
+    private val serverIp = "192.168.31.214"
+    private val serverPort = 8888
+
+
+    private var rsrp: Int? = null
+    private var rsrq: Int? = null
+    private var rssi: Int? = null
+
+    @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -64,14 +79,15 @@ class Location : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+
         bBackToMain = findViewById<Button>(R.id.back_to_main)
+        telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
 
         myFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
-        tvLat = findViewById(R.id.tv_lat) as TextView
-        tvLon = findViewById(R.id.tv_lon) as TextView
-        tvAlt = findViewById(R.id.tv_at) as TextView
-        tvTime = findViewById(R.id.tv_curtime) as TextView
-
+        tvLat = findViewById(R.id.tv_lat)
+        tvLon = findViewById(R.id.tv_lon)
+        tvAlt = findViewById(R.id.tv_at)
+        tvTime = findViewById(R.id.tv_curtime)
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
@@ -82,31 +98,34 @@ class Location : AppCompatActivity() {
                     val time = SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault()).format(Date(location.time))
                     tvTime.text = "Last update: $time"
 
+
+                    getSignalInfo()
+
+
+                    saveCurrentLocation(
+                        location.latitude,
+                        location.longitude,
+                        location.altitude
+                    )
                 }
             }
         }
-
-
-
     }
 
     override fun onResume() {
         super.onResume()
 
-        bBackToMain.setOnClickListener({
+        bBackToMain.setOnClickListener {
             val backToMain = Intent(this, MainActivity::class.java)
             startActivity(backToMain)
-        })
+        }
 
         getCurrentLocation()
-
     }
 
-
-    private fun getCurrentLocation(){
-
-        if(checkPermissions()){
-            if(isLocationEnabled()){
+    private fun getCurrentLocation() {
+        if (checkPermissions()) {
+            if (isLocationEnabled()) {
                 if (ActivityCompat.checkSelfPermission(
                         this,
                         Manifest.permission.ACCESS_FINE_LOCATION
@@ -131,36 +150,94 @@ class Location : AppCompatActivity() {
                     Looper.getMainLooper()
                 )
 
-                myFusedLocationProviderClient.lastLocation.addOnCompleteListener(this){ task->
-                    val location: Location?=task.result
-                    if(location == null){
-                        Toast.makeText(applicationContext, "problems with signal", Toast.LENGTH_SHORT).show()
+                myFusedLocationProviderClient.lastLocation.addOnCompleteListener(this) { task ->
+                    val location: Location? = task.result
+                    if (location == null) {
+                        Toast.makeText(applicationContext, "Problems with signal", Toast.LENGTH_SHORT).show()
                     } else {
                         tvLat.text = "Latitude: ${location.latitude}"
                         tvLon.text = "Longitude: ${location.longitude}"
                         tvAlt.text = "Altitude: ${location.altitude} meters"
-                        val time = java.text.SimpleDateFormat("HH:mm:ss dd.MM.yyyy").format(java.util.Date(location.time))
+                        val time = SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault())
+                            .format(Date(location.time))
                         tvTime.text = "Last update: $time"
+
+
+                        getSignalInfo()
+
 
                         saveCurrentLocation(location.latitude, location.longitude, location.altitude)
                     }
                 }
-
-            } else{
-                // open settings to enable location
+            } else {
                 Toast.makeText(applicationContext, "Enable location in settings", Toast.LENGTH_SHORT).show()
                 val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                 startActivity(intent)
             }
         } else {
-            Log.w(LOG_TAG, "location permission is not allowed");
-            tvLat.setText("Permission is not granted")
-            tvLon.setText("Permission is not granted")
+            Log.w(LOG_TAG, "Location permission is not allowed")
+            tvLat.text = "Permission is not granted"
+            tvLon.text = "Permission is not granted"
             requestPermissions()
         }
-
     }
-    private fun sendLocationToServer(latitude: Double, longitude: Double, altitude: Double) {
+
+    @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+    private fun getSignalInfo() {
+
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_PHONE_STATE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.READ_PHONE_STATE),
+                PERMISSION_REQUEST_PHONE_STATE
+            )
+            return
+        }
+
+        try {
+
+            val allCellInfo: List<CellInfo>? = telephonyManager.allCellInfo
+
+            allCellInfo?.forEach { cellInfo ->
+                if (cellInfo is CellInfoLte) {
+                    val lte = cellInfo.cellSignalStrength as CellSignalStrengthLte
+
+                    rsrp = lte.rsrp
+                    rsrq = lte.rsrq
+                    rssi = lte.rssi
+
+
+                    runOnUiThread {
+                        tvSignal.text = "RSRP: ${rsrp ?: "N/A"} dBm\n" +
+                                "RSRQ: ${rsrq ?: "N/A"} dB\n" +
+                                "RSSI: ${rssi ?: "N/A"} dBm"
+                    }
+
+                    Log.d(LOG_TAG, "Signal Info - RSRP: $rsrp, RSRQ: $rsrq, RSSI: $rssi")
+                    return@forEach
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e(LOG_TAG, "Security Exception: ${e.message}")
+            Toast.makeText(this, "Cannot access signal information", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Error getting signal info: ${e.message}")
+        }
+    }
+
+    private fun sendLocationToServer(
+        latitude: Double,
+        longitude: Double,
+        altitude: Double,
+        rsrp: Int? = null,
+        rsrq: Int? = null,
+        rssi: Int? = null
+    ) {
         Thread {
             val context = ZContext()
             val socket = context.createSocket(SocketType.REQ)
@@ -173,6 +250,9 @@ class Location : AppCompatActivity() {
                     put("long", longitude)
                     put("altitude", altitude)
                     put("timestamp", System.currentTimeMillis())
+                    put("rsrp", rsrp ?: JSONObject.NULL)
+                    put("rsrq", rsrq ?: JSONObject.NULL)
+                    put("rssi", rssi ?: JSONObject.NULL)
                 }
 
                 socket.send(jsonData.toString().toByteArray(ZMQ.CHARSET), 0)
@@ -189,6 +269,7 @@ class Location : AppCompatActivity() {
             }
         }.start()
     }
+
     private fun saveCurrentLocation(latitude: Double, longitude: Double, altitude: Double) {
         val timeFormat = SimpleDateFormat("HH:mm:ss dd.MM.yyyy", Locale.getDefault())
         val currentTime = timeFormat.format(Date())
@@ -198,6 +279,9 @@ class Location : AppCompatActivity() {
             put("latitude", latitude)
             put("longitude", longitude)
             put("altitude", altitude)
+            put("rsrp", rsrp ?: JSONObject.NULL)
+            put("rsrq", rsrq ?: JSONObject.NULL)
+            put("rssi", rssi ?: JSONObject.NULL)
         }
 
         val externalDir = getExternalFilesDir(null)
@@ -207,19 +291,21 @@ class Location : AppCompatActivity() {
         jsonArray.put(newEntry)
         file.writeText(jsonArray.toString(4))
 
-        // Отправляем данные на сервер
-        sendLocationToServer(latitude, longitude, altitude)
+
+        sendLocationToServer(latitude, longitude, altitude, rsrp, rsrq, rssi)
 
         Toast.makeText(this, "Saved to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
     }
 
-
     private fun requestPermissions() {
-        Log.w(LOG_TAG, "requestPermissions()");
+        Log.w(LOG_TAG, "requestPermissions()")
         ActivityCompat.requestPermissions(
             this,
-            arrayOf(android.Manifest.permission.ACCESS_COARSE_LOCATION,
-                android.Manifest.permission.ACCESS_FINE_LOCATION),
+            arrayOf(
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.READ_PHONE_STATE
+            ),
             PERMISSION_REQUEST_ACCESS_LOCATION
         )
     }
@@ -251,9 +337,9 @@ class Location : AppCompatActivity() {
         }
     }
 
-    private fun isLocationEnabled(): Boolean{
-        val locationManager:LocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-
+    private fun isLocationEnabled(): Boolean {
+        val locationManager: LocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
 }
